@@ -13,6 +13,11 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"] # Canonical
 }
 
+# Attach already created security group
+data "aws_security_group" "existing" {
+    id = "sg-090abd67276d3baa7"
+}
+
 # s3 Bucket module
 module "s3_bucket" {
   source = "terraform-aws-modules/s3-bucket/aws"
@@ -25,8 +30,11 @@ module "s3_bucket" {
 }
 
 resource "aws_instance" "app_server" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.micro"
+  ami               = data.aws_ami.ubuntu.id
+  instance_type     = "t3.micro"
+  
+  #attach the sg
+  vpc_security_group_ids = [data.aws_security_group.existing.id]
 
   tags = {
     name        = "learn_tf"
