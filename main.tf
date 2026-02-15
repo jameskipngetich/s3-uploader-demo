@@ -20,7 +20,12 @@ data "aws_security_group" "existing" {
 
 # Search for existing key pair
 data "aws_key_pair" "existing" {
-  key_name = "lelkey"
+  key_name = "lelkey" #replace with your keypair name
+}
+
+# search for s3 execution iam role
+data "aws_iam_instance_profile" "existing" {
+  name = "EC2-S3-Access-Role"
 }
 
 # s3 Bucket module
@@ -32,6 +37,8 @@ module "s3_bucket" {
 
   control_object_ownership = true
   object_ownership         = "ObjectWriter"
+
+  force_destroy = true
 }
 
 resource "aws_instance" "app_server" {
@@ -43,6 +50,21 @@ resource "aws_instance" "app_server" {
 
   #attach aws_keypair
   key_name = data.aws_key_pair.existing.key_name
+
+  # IAM role to enable interaction with s3
+  iam_instance_profile = data.aws_iam_instance_profile.existing.name
+
+  # User data,  -> install git and pip, -> install python requriemnts, -> perform a test
+  user_data = <<-EOF
+            #!/usr/bin/env bash
+            sudo apt install -y git
+            sudo apt install -y python3-pip
+            git clone https://github.com/jameskipngetich/s3-uploader-demo.git 
+            cd s3-uploader-demo 
+            pip install requirements.txt
+            EOF
+
+
 
   tags = {
     name        = "learn_tf"
