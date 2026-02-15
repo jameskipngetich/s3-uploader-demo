@@ -13,15 +13,53 @@ data "aws_ami" "ubuntu" {
   owners = ["099720109477"] # Canonical
 }
 
+#### Network configuration
+resource "aws_vpc" "demo" {
+  cidr_block = "10.0.0.0/16"
+
+  tags = {
+    name        = "demo_vpc"
+    environment = "demo"
+  }
+}
+
+resource "aws_security_group" "demo-sg" {
+  name        = "demo-sg"
+  description = "Act as a firewall to the demo server"
+  vpc_id      = aws_vpc.demo.id
+
+  tags = {
+    name = "demo-sg"
+  }
+}
+
+resource "aws_vpc_security_group_egress_rule" "allow-all-ipv4" {
+  security_group_id = aws_security_group.demo-sg.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1" #semantically same as all ports
+}
+
+resource "aws_vpc_security_group_ingress_rule" "allow-ipv4-ssh" {
+  security_group_id = aws_security_group.demo-sg.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = "22"
+  ip_protocol       = "ssh"
+  to_port           = "22"
+}
+
 # Attach already created security group
 data "aws_security_group" "existing" {
   id = "sg-090abd67276d3baa7" # Replace with your already created security group id
 }
 
+
 # Search for existing key pair
 data "aws_key_pair" "existing" {
   key_name = "lelkey" #replace with your keypair name
 }
+### You can create your own key pair by commenting out the code block above and uncommenting the one below
+### Warning Generating ssh key_pairs in terraform is a security risk if state backend are not managed in a secure isolated environment
+
 
 # search for s3 execution iam role
 data "aws_iam_instance_profile" "existing" {
@@ -32,7 +70,7 @@ data "aws_iam_instance_profile" "existing" {
 module "s3_bucket" {
   source = "terraform-aws-modules/s3-bucket/aws"
 
-  bucket = "s3-uploader-321" #replace with your bucket name
+  bucket = var.bucket
   acl    = "private"
 
   control_object_ownership = true
@@ -43,7 +81,8 @@ module "s3_bucket" {
 
 resource "aws_instance" "app_server" {
   ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.micro"
+  instance_type = var.instance_type
+  
 
   #attach the sg
   vpc_security_group_ids = [data.aws_security_group.existing.id]
@@ -67,7 +106,7 @@ resource "aws_instance" "app_server" {
 
 
   tags = {
-    name        = "learn_tf"
+    name        = var.instance_name
     environment = "demo"
   }
 }
