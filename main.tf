@@ -15,7 +15,12 @@ data "aws_ami" "ubuntu" {
 
 # Attach already created security group
 data "aws_security_group" "existing" {
-    id = "sg-090abd67276d3baa7"
+  id = "sg-090abd67276d3baa7" # Replace with your already created security group id
+}
+
+# Search for existing key pair
+data "aws_key_pair" "existing" {
+  key_name = "lelkey"
 }
 
 # s3 Bucket module
@@ -30,14 +35,19 @@ module "s3_bucket" {
 }
 
 resource "aws_instance" "app_server" {
-  ami               = data.aws_ami.ubuntu.id
-  instance_type     = "t3.micro"
-  
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.micro"
+
   #attach the sg
   vpc_security_group_ids = [data.aws_security_group.existing.id]
+
+  #attach aws_keypair
+  key_name = data.aws_key_pair.existing.key_name
 
   tags = {
     name        = "learn_tf"
     environment = "demo"
   }
 }
+
+
